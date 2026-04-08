@@ -29,12 +29,11 @@ export default function AccountDeletion() {
             <Text>{t("accountDeletion.fromSettings")}</Text>
             <Text>
               {t("accountDeletion.byEmail")}{" "}
-              <a
-                href="mailto:plugimt@gmail.com"
+              <span
                 className="text-blue-400 underline hover:text-blue-500"
               >
-                plugimt@gmail.com
-              </a>
+                plugimt.nantes [at] gmail.com
+              </span>
               .
             </Text>
           </Stack>
