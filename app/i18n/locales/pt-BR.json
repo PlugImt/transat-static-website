@@ -145,12 +145,19 @@
     },
     "lastLoaded": "Estatísticas carregadas pela última vez: {{date}}"
   },
+  "accountDeletion": {
+    "title": "Exclusão de conta",
+    "subtitle": "Como solicitar a exclusão da sua conta Transat",
+    "fromSettings": "Você pode excluir sua conta diretamente nas configurações do aplicativo.",
+    "byEmail": "Você também pode enviar um e-mail para"
+  },
   "footer": {
     "links": {
       "about": "Sobre",
       "privacy": "Política de privacidade",
       "terms": "Termos de serviço",
-      "contact": "Contato"
+      "contact": "Contato",
+      "accountDeletion": "Exclusão de conta"
     },
     "language": "Idioma",
     "copyright": "© 2025 Transat - IMT Atlantique",

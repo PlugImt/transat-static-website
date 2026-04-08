@@ -11,6 +11,7 @@ const Footer: React.FC<FooterProps> = ({className = ''}) => {
     const currentYear = new Date().getFullYear();
 
     const footerLinks = [
+        {label: t('footer.links.accountDeletion'), href: '/account-deletion'},
         {label: t('footer.links.about'), href: '#'},
         {label: t('footer.links.privacy'), href: '#'},
         {label: t('footer.links.terms'), href: '#'},

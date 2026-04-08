@@ -145,12 +145,19 @@
     },
     "lastLoaded": "统计最后加载：{{date}}"
   },
+  "accountDeletion": {
+    "title": "账户删除",
+    "subtitle": "如何申请删除您的 Transat 账户",
+    "fromSettings": "您可以直接在应用设置中删除您的账户。",
+    "byEmail": "您也可以发送邮件至"
+  },
   "footer": {
     "links": {
       "about": "关于",
       "privacy": "隐私政策",
       "terms": "服务条款",
-      "contact": "联系"
+      "contact": "联系",
+      "accountDeletion": "删除账户"
     },
     "language": "语言",
     "copyright": "© 2025 Transat - IMT Atlantique",

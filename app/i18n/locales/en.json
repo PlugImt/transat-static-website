@@ -149,12 +149,19 @@
     },
     "lastLoaded": "Statistics last loaded: {{date}}"
   },
+  "accountDeletion": {
+    "title": "Account Deletion",
+    "subtitle": "How to request deletion of your Transat account",
+    "fromSettings": "You can delete your account directly from the app settings.",
+    "byEmail": "You can also send an email to"
+  },
   "footer": {
     "links": {
       "about": "About",
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
-      "contact": "Contact"
+      "contact": "Contact",
+      "accountDeletion": "Account Deletion"
     },
     "language": "Language",
     "copyright": "© 2025 Transat - IMT Atlantique",

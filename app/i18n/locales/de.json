@@ -145,12 +145,19 @@
     },
     "lastLoaded": "Statistiken zuletzt geladen: {{date}}"
   },
+  "accountDeletion": {
+    "title": "Konto löschen",
+    "subtitle": "So beantragen Sie die Löschung Ihres Transat-Kontos",
+    "fromSettings": "Sie können Ihr Konto direkt in den Einstellungen der App löschen.",
+    "byEmail": "Sie können auch eine E-Mail senden an"
+  },
   "footer": {
     "links": {
       "about": "Über uns",
       "privacy": "Datenschutzrichtlinie",
       "terms": "Nutzungsbedingungen",
-      "contact": "Kontakt"
+      "contact": "Kontakt",
+      "accountDeletion": "Konto löschen"
     },
     "language": "Sprache",
     "copyright": "© 2025 Transat - IMT Atlantique",
