@@ -1,4 +1,4 @@
-import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration,} from "react-router";
+import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLocation,} from "react-router";
 import {useTranslation} from 'react-i18next';
 import {useEffect} from 'react';
 
@@ -40,6 +40,7 @@ export function Layout({children}: { children: React.ReactNode }) {
 
 export default function App() {
     const {i18n} = useTranslation();
+    const location = useLocation();
 
     // Set language based on browser preference
     useEffect(() => {
@@ -47,9 +48,12 @@ export default function App() {
     }, []);
 
     return (
-        <PageLayout>
-            <Outlet/>
-        </PageLayout>
+        // The photobooth share pages are standalone, like a screen of the app: no site header or footer.
+        location.pathname.startsWith("/photobooth/") ? <Outlet/> : (
+            <PageLayout>
+                <Outlet/>
+            </PageLayout>
+        )
     );
 }
 

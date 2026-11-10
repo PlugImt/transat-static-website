@@ -178,9 +178,12 @@
     "collage": "Collage",
     "photos": "Individual photos",
     "photoN": "Photo {{n}}",
-    "downloadCollage": "Download the collage",
+    "downloadCollage": "Save the collage",
     "downloadPhoto": "Photo {{n}}",
     "fullQuality": "Every download is the original, full-quality file.",
-    "empty": "These pictures are no longer available."
+    "empty": "These pictures are no longer available.",
+    "shareLink": "Share the link",
+    "getApp": "All your party photos are in the Transat app",
+    "download": "Save"
   }
 }

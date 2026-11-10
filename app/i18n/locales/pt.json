@@ -174,9 +174,12 @@
     "collage": "Colagem",
     "photos": "Fotos individuais",
     "photoN": "Foto {{n}}",
-    "downloadCollage": "Descarregar a colagem",
+    "downloadCollage": "Guardar a colagem",
     "downloadPhoto": "Foto {{n}}",
     "fullQuality": "Cada transferência é o ficheiro original, em qualidade total.",
-    "empty": "Estas fotos já não estão disponíveis."
+    "empty": "Estas fotos já não estão disponíveis.",
+    "shareLink": "Partilhar a ligação",
+    "getApp": "Todas as fotos das festas estão na app Transat",
+    "download": "Guardar"
   }
 }
