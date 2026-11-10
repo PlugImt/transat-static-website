@@ -168,5 +168,15 @@
     "pageNotFound": "找不到请求的页面。",
     "unexpectedError": "发生意外错误。",
     "returnHome": "返回首页"
+  },
+  "photobooth": {
+    "subtitle": "拍照亭",
+    "collage": "拼贴",
+    "photos": "单张照片",
+    "photoN": "照片 {{n}}",
+    "downloadCollage": "下载拼贴",
+    "downloadPhoto": "照片 {{n}}",
+    "fullQuality": "所有下载均为原始全画质文件。",
+    "empty": "这些照片已不可用。"
   }
-} 
+}

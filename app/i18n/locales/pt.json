@@ -168,5 +168,15 @@
     "pageNotFound": "A página solicitada não foi encontrada.",
     "unexpectedError": "Ocorreu um erro inesperado.",
     "returnHome": "Voltar ao início"
+  },
+  "photobooth": {
+    "subtitle": "Photobooth",
+    "collage": "Colagem",
+    "photos": "Fotos individuais",
+    "photoN": "Foto {{n}}",
+    "downloadCollage": "Descarregar a colagem",
+    "downloadPhoto": "Foto {{n}}",
+    "fullQuality": "Cada transferência é o ficheiro original, em qualidade total.",
+    "empty": "Estas fotos já não estão disponíveis."
   }
-} 
+}

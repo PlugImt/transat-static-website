@@ -168,5 +168,15 @@
     "pageNotFound": "Die angeforderte Seite konnte nicht gefunden werden.",
     "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten.",
     "returnHome": "Zurück zur Startseite"
+  },
+  "photobooth": {
+    "subtitle": "Fotobox",
+    "collage": "Collage",
+    "photos": "Einzelfotos",
+    "photoN": "Foto {{n}}",
+    "downloadCollage": "Collage herunterladen",
+    "downloadPhoto": "Foto {{n}}",
+    "fullQuality": "Jeder Download ist die Originaldatei in voller Qualität.",
+    "empty": "Diese Fotos sind nicht mehr verfügbar."
   }
-} 
+}

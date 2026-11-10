@@ -168,5 +168,15 @@
     "pageNotFound": "La page demandée est introuvable.",
     "unexpectedError": "Une erreur inattendue s'est produite.",
     "returnHome": "Retour à l'accueil"
+  },
+  "photobooth": {
+    "subtitle": "Photobooth",
+    "collage": "Collage",
+    "photos": "Photos individuelles",
+    "photoN": "Photo {{n}}",
+    "downloadCollage": "Télécharger le collage",
+    "downloadPhoto": "Photo {{n}}",
+    "fullQuality": "Chaque téléchargement est le fichier original, en pleine qualité.",
+    "empty": "Ces photos ne sont plus disponibles."
   }
-} 
+}

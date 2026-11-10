@@ -54,10 +54,10 @@
         "title": "Campus Services",
         "description": "Access all campus services and stay connected with your community"
       },
-        "laundry": {
-            "title": "Laundry Services",
-            "description": "Check laundry machine availability and monitor your laundry status"
-        }
+      "laundry": {
+        "title": "Laundry Services",
+        "description": "Check laundry machine availability and monitor your laundry status"
+      }
     },
     "about": {
       "title": "Made by Students, for Students",
@@ -172,5 +172,15 @@
     "pageNotFound": "The requested page could not be found.",
     "unexpectedError": "An unexpected error occurred.",
     "returnHome": "Return Home"
+  },
+  "photobooth": {
+    "subtitle": "Photobooth",
+    "collage": "Collage",
+    "photos": "Individual photos",
+    "photoN": "Photo {{n}}",
+    "downloadCollage": "Download the collage",
+    "downloadPhoto": "Photo {{n}}",
+    "fullQuality": "Every download is the original, full-quality file.",
+    "empty": "These pictures are no longer available."
   }
-} 
+}
