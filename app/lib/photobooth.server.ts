@@ -1,7 +1,7 @@
 // Server-only helpers for the photobooth share pages: the browser never talks to the API directly, so the
 // pictures stream from this server at the visitor's pace instead of through the API's short write timeout.
 
-const DEFAULT_API = "https://api.transat.dev";
+const DEFAULT_API = "https://develop.transat.dev";
 
 export function photoboothApi(): string {
     return (process.env.PHOTOBOOTH_API_URL || DEFAULT_API).replace(/\/+$/, "");
