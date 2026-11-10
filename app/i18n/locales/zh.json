@@ -174,9 +174,12 @@
     "collage": "拼贴",
     "photos": "单张照片",
     "photoN": "照片 {{n}}",
-    "downloadCollage": "下载拼贴",
+    "downloadCollage": "保存拼贴",
     "downloadPhoto": "照片 {{n}}",
     "fullQuality": "所有下载均为原始全画质文件。",
-    "empty": "这些照片已不可用。"
+    "empty": "这些照片已不可用。",
+    "shareLink": "分享链接",
+    "getApp": "所有活动照片都在 Transat 应用中",
+    "download": "保存"
   }
 }
