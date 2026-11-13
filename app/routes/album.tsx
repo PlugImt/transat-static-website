@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {data, redirect, useLoaderData} from "react-router";
 import {useTranslation} from "react-i18next";
-import {FaArrowLeft, FaArrowRight, FaCheck, FaDownload, FaFileArchive, FaRegCheckCircle, FaSearchMinus, FaSearchPlus, FaShareAlt, FaTimes} from "react-icons/fa";
+import {FaArrowLeft, FaArrowRight, FaCheck, FaDownload, FaExpand, FaHandPointer, FaRegCheckCircle, FaSearchMinus, FaSearchPlus, FaShareAlt, FaTimes} from "react-icons/fa";
 
 import {albumPath, type PublicAlbum, type PublicPhoto, type PublicPhotosPage} from "../lib/albums";
 import {albumIdOf, apiJson, ApiStatusError} from "../lib/albums.server";
@@ -213,13 +213,21 @@ export default function AlbumPage() {
         setSelected((prev) => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id);
-            else next.add(id);
+            else if (next.size >= MAX_SELECTION) {
+                setToast(t("albums.selectionLimit", {count: MAX_SELECTION}));
+                return prev;
+            } else next.add(id);
             return next;
         });
-    }, []);
+    }, [t]);
 
-    const allSelected = photos.length > 0 && photos.every((p) => selected.has(p.id));
-    const selectAll = () => setSelected(allSelected ? new Set() : new Set(photos.map((p) => p.id)));
+    const [menu, setMenu] = useState<{ photo: PublicPhoto; index: number } | null>(null);
+    const slug = album.slug || `album-${album.id}`;
+
+    const downloadOne = useCallback(async (photo: PublicPhoto, index: number) => {
+        setToast(t("albums.downloading"));
+        await savePhoto(photoUrl(base, photo.id, "original", true), `${slug}-${index + 1}.jpg`);
+    }, [base, slug, t]);
 
     const downloadSelected = async () => {
         // Grid order, not the order of the clicks.
@@ -227,7 +235,7 @@ export default function AlbumPage() {
         if (ids.length === 0 || saving) return;
         setSaving(true);
         try {
-            const result = await saveSelection(base, album.slug || `album-${album.id}`, ids);
+            const result = await saveSelection(base, slug, ids);
             if (result === "zip") setToast(t("albums.zipStarting"));
             if (result !== "cancelled") stopSelecting();
         } finally {
@@ -268,8 +276,7 @@ export default function AlbumPage() {
                 count={countLabel}
                 selecting={selecting}
                 onSelect={() => (selecting ? stopSelecting() : setSelecting(true))}
-                downloadHref={`${base}/download`}
-                onDownloadAll={() => setToast(t("albums.zipStarting"))}
+                onShare={shareAlbum}
             />
 
             <main className="relative mx-auto max-w-[1600px] px-2 pb-32 pt-6 sm:px-6 sm:pt-10">
@@ -284,22 +291,14 @@ export default function AlbumPage() {
                         {[date, countLabel, album.category].filter(Boolean).join(" · ")}
                     </p>
                     <div className="mt-6 grid w-full grid-cols-2 gap-2.5 px-2 sm:flex sm:w-auto sm:px-0">
-                        <a
-                            href={`${base}/download`}
-                            download
-                            className="al-press col-span-2 flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white"
-                            style={{background: C.primary, boxShadow: "0 12px 30px -12px rgba(236,127,50,0.7)"}}
-                            onClick={() => setToast(t("albums.zipStarting"))}
-                        >
-                            <FaFileArchive aria-hidden/>
-                            {t("albums.downloadAll")}
-                        </a>
                         <button
                             type="button"
                             onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
                             aria-pressed={selecting}
-                            className="al-press flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"
-                            style={{background: C.card, border: `1px solid ${selecting ? C.primary : C.border}`}}
+                            className="al-press flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white"
+                            style={selecting
+                                ? {background: C.card, border: `1px solid ${C.primary}`, color: C.primary}
+                                : {background: C.primary, border: `1px solid ${C.primary}`, boxShadow: "0 12px 30px -12px rgba(236,127,50,0.7)"}}
                         >
                             <FaRegCheckCircle aria-hidden/>
                             {selecting ? t("albums.cancel") : t("albums.select")}
@@ -314,6 +313,13 @@ export default function AlbumPage() {
                             {t("albums.share")}
                         </button>
                     </div>
+                    {/* How to get a photo: the hover controls and the long press are not visible until used. */}
+                    <p className="al-hint-hover mt-4 items-center justify-center gap-2 text-xs" style={{color: C.muted}}>
+                        <FaDownload aria-hidden style={{color: C.primary}}/> {t("albums.hintHover")}
+                    </p>
+                    <p className="al-hint-touch mt-4 items-center justify-center gap-2 text-xs" style={{color: C.muted}}>
+                        <FaHandPointer aria-hidden style={{color: C.primary}}/> {t("albums.hintTouch")}
+                    </p>
                 </header>
 
                 {photos.length === 0 ? (
@@ -330,6 +336,8 @@ export default function AlbumPage() {
                         selected={selected}
                         onOpen={setOpen}
                         onToggle={toggle}
+                        onDownload={downloadOne}
+                        onMenu={(photo, index) => setMenu({photo, index})}
                     />
                 )}
 
@@ -369,14 +377,32 @@ export default function AlbumPage() {
             <SelectionBar
                 visible={selecting && open === null}
                 count={selected.size}
-                allSelected={allSelected}
                 saving={saving}
                 onCancel={stopSelecting}
-                onSelectAll={selectAll}
+                onClear={() => setSelected(new Set())}
                 onDownload={downloadSelected}
             />
 
-            <AppBanner hidden={open !== null || selecting}/>
+            <PhotoSheet
+                item={menu}
+                base={base}
+                isSelected={!!menu && selected.has(menu.photo.id)}
+                onClose={() => setMenu(null)}
+                onDownload={(m) => {
+                    setMenu(null);
+                    void downloadOne(m.photo, m.index);
+                }}
+                onToggle={(m) => {
+                    setMenu(null);
+                    toggle(m.photo.id);
+                }}
+                onOpen={(m) => {
+                    setMenu(null);
+                    setOpen(m.index);
+                }}
+            />
+
+            <AppBanner hidden={open !== null || selecting || menu !== null}/>
 
             {toast && (
                 <div role="status" className="al-toast fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-medium shadow-lg"
@@ -397,13 +423,23 @@ export default function AlbumPage() {
                 .al-press:active { transform: scale(.97); }
                 .al-press:hover { filter: brightness(1.08); }
                 .al-tile .al-img { transition: opacity .5s ease, transform .25s cubic-bezier(.2,.8,.2,1), border-radius .25s ease; }
-                .al-tile .al-check { opacity: 0; transition: opacity .15s ease, transform .15s ease; }
+                .al-tile .al-check, .al-tile .al-dl { opacity: 0; transition: opacity .15s ease, transform .15s ease, background-color .15s ease; }
                 .al-tile.selecting .al-check, .al-tile.selected .al-check { opacity: 1; }
-                @media (hover: hover) {
-                    .al-tile:hover .al-check { opacity: 1; }
+                .al-tile.selecting .al-dl { display: none; }
+                .al-tile:focus-within .al-check, .al-tile:not(.selecting):focus-within .al-dl, .al-tile:focus-within .al-shade { opacity: 1; }
+                .al-hint-hover, .al-hint-touch { display: none; }
+                @media (hover: hover) and (pointer: fine) {
+                    .al-hint-hover { display: flex; }
+                    .al-tile:hover .al-check, .al-tile:hover .al-dl, .al-tile:hover .al-shade { opacity: 1; }
                     .al-tile:not(.selecting):hover .al-img.loaded { transform: scale(1.03); }
-                    .al-tile:hover .al-shade { opacity: 1; }
+                    .al-check:hover, .al-dl:hover { transform: scale(1.1); }
+                    .al-dl:hover { background-color: ${C.primary} !important; }
                 }
+                @media (hover: none), (pointer: coarse) {
+                    .al-hint-touch { display: flex; }
+                    .al-tile .al-dl { display: none; }
+                }
+                @keyframes al-sheet { from { transform: translateY(100%); } to { transform: none; } }
                 .al-tile.selected .al-img { transform: scale(.88); border-radius: 10px; }
                 .al-tile:focus-within { outline: 2px solid ${C.primary}; outline-offset: 1px; }
                 .al-skeleton { animation: al-pulse 1.4s ease-in-out infinite; }
@@ -460,18 +496,20 @@ async function saveSelection(base: string, slug: string, ids: string[]): Promise
 /** Above this many photos, a phone gets a zip rather than a share sheet holding every original in memory. */
 const SHARE_SHEET_MAX = 12;
 
+/** Most photos downloaded at once: the server builds the zip from the originals. Same limit in album-download.ts. */
+const MAX_SELECTION = 30;
+
 /**
  * The album's title and photo count, pinned at the top once the page title has scrolled away. On a phone it steps
  * aside while the visitor scrolls down through the photos and comes back as soon as they scroll up a little.
  */
-function StickyBar({titleRef, title, count, selecting, onSelect, downloadHref, onDownloadAll}: {
+function StickyBar({titleRef, title, count, selecting, onSelect, onShare}: {
     titleRef: React.RefObject<HTMLHeadingElement | null>;
     title: string;
     count: string;
     selecting: boolean;
     onSelect: () => void;
-    downloadHref: string;
-    onDownloadAll: () => void;
+    onShare: () => void;
 }) {
     const {t} = useTranslation();
     const [pastTitle, setPastTitle] = useState(false);
@@ -532,36 +570,34 @@ function StickyBar({titleRef, title, count, selecting, onSelect, downloadHref, o
                     onClick={onSelect}
                     aria-pressed={selecting}
                     className="al-press flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
-                    style={{background: selecting ? "rgba(236,127,50,0.16)" : "transparent", color: selecting ? C.primary : C.text}}
+                    style={selecting ? {background: "rgba(236,127,50,0.16)", color: C.primary} : {background: C.primary, color: "white"}}
                 >
                     <FaRegCheckCircle aria-hidden/>
                     <span className="hidden sm:inline">{selecting ? t("albums.cancel") : t("albums.select")}</span>
                 </button>
-                <a
-                    href={downloadHref}
-                    download
+                <button
+                    type="button"
                     tabIndex={visible ? 0 : -1}
-                    onClick={onDownloadAll}
-                    aria-label={t("albums.downloadAll")}
-                    className="al-press flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-white"
-                    style={{background: C.primary}}
+                    onClick={onShare}
+                    aria-label={t("albums.share")}
+                    title={t("albums.share")}
+                    className="al-press flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
                 >
-                    <FaFileArchive aria-hidden/>
-                    <span className="hidden sm:inline">{t("albums.downloadAll")}</span>
-                </a>
+                    <FaShareAlt aria-hidden/>
+                    <span className="hidden sm:inline">{t("albums.share")}</span>
+                </button>
             </div>
         </div>
     );
 }
 
 /** Actions on the selected photos, at the bottom like the app's selection bar. */
-function SelectionBar({visible, count, allSelected, saving, onCancel, onSelectAll, onDownload}: {
+function SelectionBar({visible, count, saving, onCancel, onClear, onDownload}: {
     visible: boolean;
     count: number;
-    allSelected: boolean;
     saving: boolean;
     onCancel: () => void;
-    onSelectAll: () => void;
+    onClear: () => void;
     onDownload: () => void;
 }) {
     const {t} = useTranslation();
@@ -576,24 +612,83 @@ function SelectionBar({visible, count, allSelected, saving, onCancel, onSelectAl
                 pointerEvents: visible ? "auto" : "none",
             }}
         >
-            <div className="flex w-full max-w-xl items-center gap-2 rounded-2xl p-2 pl-2 shadow-2xl"
+            <div className="flex w-full max-w-xl items-center gap-2 rounded-2xl p-2 shadow-2xl"
                  style={{background: "rgba(30,21,21,0.94)", border: `1px solid ${C.border}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)"}}>
-                <button type="button" onClick={onCancel} aria-label={t("albums.cancel")} tabIndex={visible ? 0 : -1}
+                <button type="button" onClick={onCancel} aria-label={t("albums.cancel")} title={t("albums.cancel")} tabIndex={visible ? 0 : -1}
                         className="shrink-0 rounded-full p-2.5 transition-colors hover:bg-white/10">
                     <FaTimes/>
                 </button>
-                <p className="min-w-0 flex-1 truncate text-sm font-semibold" aria-live="polite">
-                    {count > 0 ? t("albums.selectedCount", {count}) : t("albums.selectHint")}
-                </p>
-                <button type="button" onClick={onSelectAll} tabIndex={visible ? 0 : -1}
-                        className="shrink-0 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/10" style={{color: C.muted}}>
-                    {allSelected ? t("albums.deselectAll") : t("albums.selectAll")}
-                </button>
+                <div className="min-w-0 flex-1 leading-tight" aria-live="polite">
+                    <p className="truncate text-sm font-semibold">
+                        {count > 0 ? t("albums.selectedCount", {count}) : t("albums.selectHint")}
+                    </p>
+                    <p className="truncate text-[11px]" style={{color: C.muted}}>{t("albums.selectionMax", {count: MAX_SELECTION})}</p>
+                </div>
+                {count > 0 && (
+                    <button type="button" onClick={onClear} tabIndex={visible ? 0 : -1}
+                            className="hidden shrink-0 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/10 sm:block" style={{color: C.muted}}>
+                        {t("albums.deselectAll")}
+                    </button>
+                )}
                 <button type="button" onClick={onDownload} disabled={count === 0 || saving} tabIndex={visible ? 0 : -1}
                         className="al-press flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
                         style={{background: C.primary}}>
                     {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"/> : <FaDownload aria-hidden/>}
-                    <span className="hidden sm:inline">{t("albums.download")}</span>
+                    {t("albums.download")}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * What a long press on a photo offers on a phone: download it, select it, or see it larger. A sheet from the bottom
+ * with the photo itself, so it is clear which one the actions apply to.
+ */
+function PhotoSheet({item, base, isSelected, onClose, onDownload, onToggle, onOpen}: {
+    item: { photo: PublicPhoto; index: number } | null;
+    base: string;
+    isSelected: boolean;
+    onClose: () => void;
+    onDownload: (item: { photo: PublicPhoto; index: number }) => void;
+    onToggle: (item: { photo: PublicPhoto; index: number }) => void;
+    onOpen: (item: { photo: PublicPhoto; index: number }) => void;
+}) {
+    const {t} = useTranslation();
+    useEffect(() => {
+        if (!item) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [item, onClose]);
+    if (!item) return null;
+    const r = ratioOf(item.photo);
+    const action = "al-press flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-[15px] font-semibold";
+    return (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={t("albums.photoActions")}>
+            <button type="button" aria-label={t("albums.close")} onClick={onClose} className="absolute inset-0 cursor-default"
+                    style={{background: "rgba(7,4,2,0.6)", animation: "al-fade .2s ease-out", backdropFilter: "blur(2px)"}}/>
+            <div className="relative w-full max-w-md rounded-t-3xl p-3 pb-2 sm:rounded-3xl"
+                 style={{background: C.card, border: `1px solid ${C.border}`, animation: "al-sheet .3s cubic-bezier(.2,.8,.2,1) both", paddingBottom: "max(8px, env(safe-area-inset-bottom))"}}>
+                <div aria-hidden className="mx-auto mb-3 h-1 w-10 rounded-full sm:hidden" style={{background: "rgba(255,230,204,0.25)"}}/>
+                <div className="mx-auto mb-3 overflow-hidden rounded-2xl" style={{aspectRatio: `${r}`, maxHeight: "34vh", maxWidth: `calc(34vh * ${r})`, background: C.page}}>
+                    {item.photo.has_thumbnail && <img src={photoUrl(base, item.photo.id, "grid")} alt="" className="h-full w-full object-cover"/>}
+                </div>
+                <button type="button" onClick={() => onDownload(item)} className={`${action} justify-center text-white`} style={{background: C.primary}}>
+                    <FaDownload aria-hidden/> {t("albums.downloadPhoto")}
+                </button>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => onToggle(item)} className={`${action} justify-center`} style={{background: "rgba(255,230,204,0.06)"}}>
+                        <FaRegCheckCircle aria-hidden style={{color: C.primary}}/> {isSelected ? t("albums.deselect") : t("albums.select")}
+                    </button>
+                    <button type="button" onClick={() => onOpen(item)} className={`${action} justify-center`} style={{background: "rgba(255,230,204,0.06)"}}>
+                        <FaExpand aria-hidden style={{color: C.primary}}/> {t("albums.view")}
+                    </button>
+                </div>
+                <button type="button" onClick={onClose} className="mt-1 w-full rounded-xl py-3 text-sm font-medium" style={{color: C.muted}}>
+                    {t("albums.cancel")}
                 </button>
             </div>
         </div>
@@ -605,7 +700,7 @@ function SelectionBar({visible, count, allSelected, saving, onCancel, onSelectAl
  * the page. Its geometry depends on the width, so it is laid out once the container is measured; the server sends
  * placeholders of the same rhythm.
  */
-function MosaicGrid({photos, complete, base, title, selecting, selected, onOpen, onToggle}: {
+function MosaicGrid({photos, complete, base, title, selecting, selected, onOpen, onToggle, onDownload, onMenu}: {
     photos: PublicPhoto[];
     complete: boolean;
     base: string;
@@ -614,6 +709,8 @@ function MosaicGrid({photos, complete, base, title, selecting, selected, onOpen,
     selected: Set<string>;
     onOpen: (i: number) => void;
     onToggle: (id: string) => void;
+    onDownload: (photo: PublicPhoto, index: number) => void;
+    onMenu: (photo: PublicPhoto, index: number) => void;
 }) {
     const ref = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState(0);
@@ -651,6 +748,8 @@ function MosaicGrid({photos, complete, base, title, selecting, selected, onOpen,
                             isSelected={selected.has(tile.photo.id)}
                             onOpen={onOpen}
                             onToggle={onToggle}
+                            onDownload={onDownload}
+                            onMenu={onMenu}
                         />
                     ))}
                 </div>
@@ -678,7 +777,7 @@ function MosaicSkeleton() {
 
 const LONG_PRESS_MS = 450;
 
-function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
+function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle, onDownload, onMenu}: {
     tile: MosaicTile<PublicPhoto>;
     base: string;
     label: string;
@@ -686,6 +785,8 @@ function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
     isSelected: boolean;
     onOpen: (i: number) => void;
     onToggle: (id: string) => void;
+    onDownload: (photo: PublicPhoto, index: number) => void;
+    onMenu: (photo: PublicPhoto, index: number) => void;
 }) {
     const {t} = useTranslation();
     const {photo, index} = tile;
@@ -695,7 +796,7 @@ function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
         if (press.current) window.clearTimeout(press.current.timer);
     };
 
-    // A long press on a phone starts the selection with this photo, as in the app.
+    // A long press on a phone offers to download or select the photo; while selecting, it simply toggles it.
     const onPointerDown = (e: React.PointerEvent) => {
         if (e.pointerType !== "touch") return;
         cancelPress();
@@ -703,7 +804,8 @@ function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
         state.timer = window.setTimeout(() => {
             state.fired = true;
             navigator.vibrate?.(12);
-            onToggle(photo.id);
+            if (selecting) onToggle(photo.id);
+            else onMenu(photo, index);
         }, LONG_PRESS_MS);
         press.current = state;
     };
@@ -749,6 +851,7 @@ function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
                 type="button"
                 onClick={() => onToggle(photo.id)}
                 aria-label={t("albums.selectPhoto")}
+                title={isSelected ? t("albums.deselect") : t("albums.selectPhoto")}
                 aria-pressed={isSelected}
                 className="al-check absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full sm:left-2 sm:top-2"
                 style={{
@@ -759,6 +862,16 @@ function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
                 }}
             >
                 {isSelected && <FaCheck size={12} aria-hidden/>}
+            </button>
+            <button
+                type="button"
+                onClick={() => onDownload(photo, index)}
+                aria-label={t("albums.downloadPhoto")}
+                title={t("albums.downloadPhoto")}
+                className="al-dl absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full sm:right-2 sm:top-2"
+                style={{background: "rgba(7,4,2,0.55)", color: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.4)", backdropFilter: "blur(6px)"}}
+            >
+                <FaDownload size={13} aria-hidden/>
             </button>
         </div>
     );

@@ -1,9 +1,9 @@
 import {downloadZip} from "client-zip";
 import {albumIdOf, albumsApi, apiJson, ApiStatusError, type PublicAlbumFiles} from "../lib/albums.server";
 
-// The whole album as one zip of the original files, built here one photo at a time: the API only ever streams a
-// single original, which fits in its write timeout, while this response can last as long as the visitor needs.
-// Photos are stored as they are (no compression: JPEGs do not shrink), so the archive starts at once.
+// The photos a visitor selected, as one zip of the original files, built here one photo at a time: the API only
+// ever streams a single original, which fits in its write timeout. Photos are stored as they are (no compression:
+// JPEGs do not shrink), so the archive starts at once. There is no whole-album archive: it would cost too much.
 
 const MAX_CONCURRENT = 3;
 let running = 0;
@@ -19,12 +19,12 @@ function uniqueName(name: string, used: Set<string>): string {
     return candidate;
 }
 
-const MAX_SELECTED = 2000;
+/** Most photos in one archive; kept in step with MAX_SELECTION on the page. */
+const MAX_SELECTED = 30;
 const PHOTO_ID_RE = /^[A-Za-z0-9_-]{10,100}$/;
 
-// GET: the whole album.
-export async function loader({params, request}: { params: { album?: string }; request: Request }) {
-    return zip(params.album, request, null);
+export function loader() {
+    return new Response("Method not allowed", {status: 405, headers: {Allow: "POST"}});
 }
 
 // POST with "ids" (comma-separated photo ids): only the photos the visitor selected. A form post, so the browser
@@ -41,7 +41,7 @@ export async function action({params, request}: { params: { album?: string }; re
     return zip(params.album, request, ids);
 }
 
-async function zip(segment: string | undefined, request: Request, only: Set<string> | null) {
+async function zip(segment: string | undefined, request: Request, only: Set<string>) {
     const id = albumIdOf(segment);
     if (!id) return new Response("Not found", {status: 404});
     if (running >= MAX_CONCURRENT) {
@@ -59,7 +59,7 @@ async function zip(segment: string | undefined, request: Request, only: Set<stri
         return new Response(notFound ? "Not found" : "Unavailable", {status: notFound ? 404 : 502});
     }
     // Only photos of this album, whatever ids were posted.
-    if (only) album.files = album.files.filter((f) => only.has(f.id));
+    album.files = album.files.filter((f) => only.has(f.id));
     if (album.files.length === 0) return new Response("Not found", {status: 404});
 
     const folder = album.slug || `album-${id}`;
@@ -92,7 +92,7 @@ async function zip(segment: string | undefined, request: Request, only: Set<stri
     }
 
     const zip = downloadZip(files());
-    const name = only ? `${folder}-${album.files.length}-photos.zip` : `${folder}.zip`;
+    const name = `${folder}-${album.files.length}-photos.zip`;
     return new Response(zip.body, {
         headers: {
             "Content-Type": "application/zip",

@@ -190,8 +190,7 @@
     "badge": "Photo album",
     "photoCount_one": "{{count}} photo",
     "photoCount_other": "{{count}} photos",
-    "downloadAll": "Download album",
-    "zipStarting": "Your album download is starting…",
+    "zipStarting": "Preparing your download…",
     "share": "Share",
     "linkCopied": "Link copied",
     "empty": "This album has no photos yet.",
@@ -211,11 +210,19 @@
     },
     "select": "Select",
     "cancel": "Cancel",
-    "selectAll": "Select all",
     "deselectAll": "Deselect all",
     "selectPhoto": "Select photo",
     "selectHint": "Tap the photos to download",
     "selectedCount_one": "{{count}} photo selected",
-    "selectedCount_other": "{{count}} photos selected"
+    "selectedCount_other": "{{count}} photos selected",
+    "hintHover": "Hover a photo to download or select it",
+    "hintTouch": "Long-press a photo to download or select it",
+    "downloading": "Downloading the photo…",
+    "downloadPhoto": "Download photo",
+    "deselect": "Deselect",
+    "view": "View larger",
+    "photoActions": "Photo actions",
+    "selectionLimit": "Up to {{count}} photos per download",
+    "selectionMax": "Up to {{count}} photos per download"
   }
 }

@@ -186,8 +186,7 @@
     "badge": "Album photo",
     "photoCount_one": "{{count}} photo",
     "photoCount_other": "{{count}} photos",
-    "downloadAll": "Télécharger l'album",
-    "zipStarting": "Le téléchargement de l'album commence…",
+    "zipStarting": "Préparation du téléchargement…",
     "share": "Partager",
     "linkCopied": "Lien copié",
     "empty": "Cet album ne contient pas encore de photos.",
@@ -207,11 +206,19 @@
     },
     "select": "Sélectionner",
     "cancel": "Annuler",
-    "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner",
     "selectPhoto": "Sélectionner la photo",
     "selectHint": "Touchez les photos à télécharger",
     "selectedCount_one": "{{count}} photo sélectionnée",
-    "selectedCount_other": "{{count}} photos sélectionnées"
+    "selectedCount_other": "{{count}} photos sélectionnées",
+    "hintHover": "Survolez une photo pour la télécharger ou la sélectionner",
+    "hintTouch": "Appui long sur une photo pour la télécharger ou la sélectionner",
+    "downloading": "Téléchargement de la photo…",
+    "downloadPhoto": "Télécharger la photo",
+    "deselect": "Désélectionner",
+    "view": "Voir en grand",
+    "photoActions": "Actions sur la photo",
+    "selectionLimit": "{{count}} photos maximum par téléchargement",
+    "selectionMax": "{{count}} photos max. par téléchargement"
   }
 }
