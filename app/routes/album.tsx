@@ -1,10 +1,11 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {data, redirect, useLoaderData} from "react-router";
 import {useTranslation} from "react-i18next";
-import {FaArrowLeft, FaArrowRight, FaCheck, FaDownload, FaFileArchive, FaSearchMinus, FaSearchPlus, FaShareAlt, FaTimes} from "react-icons/fa";
+import {FaArrowLeft, FaArrowRight, FaCheck, FaDownload, FaFileArchive, FaRegCheckCircle, FaSearchMinus, FaSearchPlus, FaShareAlt, FaTimes} from "react-icons/fa";
 
 import {albumPath, type PublicAlbum, type PublicPhoto, type PublicPhotosPage} from "../lib/albums";
 import {albumIdOf, apiJson, ApiStatusError} from "../lib/albums.server";
+import {mosaicBlocks, type MosaicTile} from "../lib/mosaic";
 
 export async function loader({params}: { params: { album?: string } }) {
     const id = albumIdOf(params.album);
@@ -167,8 +168,13 @@ export default function AlbumPage() {
     const {photos, hasMore, loading, failed, loadMore} = useInfinitePhotos(base, page);
     const [open, setOpen] = useState<number | null>(null);
     const [toast, setToast] = useState<string | null>(null);
+    const [selecting, setSelecting] = useState(false);
+    const [selected, setSelected] = useState<Set<string>>(() => new Set());
+    const [saving, setSaving] = useState(false);
     const sentinel = useRef<HTMLDivElement>(null);
+    const titleRef = useRef<HTMLHeadingElement>(null);
     const date = formatEventDate(album, i18n.language || "fr");
+    const countLabel = t("albums.photoCount", {count: album.photo_count});
 
     // Next page well before the end of the grid.
     useEffect(() => {
@@ -183,9 +189,51 @@ export default function AlbumPage() {
 
     useEffect(() => {
         if (!toast) return;
-        const id = setTimeout(() => setToast(null), 2400);
+        const id = setTimeout(() => setToast(null), 2600);
         return () => clearTimeout(id);
     }, [toast]);
+
+    const stopSelecting = useCallback(() => {
+        setSelecting(false);
+        setSelected(new Set());
+    }, []);
+
+    // Escape leaves the selection (the lightbox handles its own Escape).
+    useEffect(() => {
+        if (!selecting || open !== null) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") stopSelecting();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [selecting, open, stopSelecting]);
+
+    const toggle = useCallback((id: string) => {
+        setSelecting(true);
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const allSelected = photos.length > 0 && photos.every((p) => selected.has(p.id));
+    const selectAll = () => setSelected(allSelected ? new Set() : new Set(photos.map((p) => p.id)));
+
+    const downloadSelected = async () => {
+        // Grid order, not the order of the clicks.
+        const ids = photos.filter((p) => selected.has(p.id)).map((p) => p.id);
+        if (ids.length === 0 || saving) return;
+        setSaving(true);
+        try {
+            const result = await saveSelection(base, album.slug || `album-${album.id}`, ids);
+            if (result === "zip") setToast(t("albums.zipStarting"));
+            if (result !== "cancelled") stopSelecting();
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const shareAlbum = async () => {
         try {
@@ -214,28 +262,48 @@ export default function AlbumPage() {
                 style={{background: "radial-gradient(60% 70% at 50% 0%, rgba(236,127,50,0.20), transparent 70%)"}}
             />
 
-            <main className="relative mx-auto max-w-[1600px] px-3 pb-28 pt-6 sm:px-6 sm:pt-10">
+            <StickyBar
+                titleRef={titleRef}
+                title={album.title}
+                count={countLabel}
+                selecting={selecting}
+                onSelect={() => (selecting ? stopSelecting() : setSelecting(true))}
+                downloadHref={`${base}/download`}
+                onDownloadAll={() => setToast(t("albums.zipStarting"))}
+            />
+
+            <main className="relative mx-auto max-w-[1600px] px-2 pb-32 pt-6 sm:px-6 sm:pt-10">
                 <header className="al-reveal mx-auto mb-7 flex max-w-3xl flex-col items-center text-center sm:mb-10">
                     <a href="/" className="mb-5 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
                        style={{background: "rgba(236,127,50,0.12)", color: C.primary, border: "1px solid rgba(236,127,50,0.25)"}}>
                         <img src="/logo.png" alt="" className="h-4 w-4 rounded"/>
                         Transat · {t("albums.badge")}
                     </a>
-                    <h1 className="text-balance text-3xl font-bold leading-tight tracking-tight sm:text-5xl">{album.title}</h1>
+                    <h1 ref={titleRef} className="text-balance text-3xl font-bold leading-tight tracking-tight sm:text-5xl">{album.title}</h1>
                     <p className="mt-3 text-sm sm:text-base" style={{color: C.muted}}>
-                        {[date, t("albums.photoCount", {count: album.photo_count}), album.category].filter(Boolean).join(" · ")}
+                        {[date, countLabel, album.category].filter(Boolean).join(" · ")}
                     </p>
-                    <div className="mt-6 flex w-full flex-col gap-2.5 sm:w-auto sm:flex-row">
+                    <div className="mt-6 grid w-full grid-cols-2 gap-2.5 px-2 sm:flex sm:w-auto sm:px-0">
                         <a
                             href={`${base}/download`}
                             download
-                            className="al-press flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white"
+                            className="al-press col-span-2 flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold text-white"
                             style={{background: C.primary, boxShadow: "0 12px 30px -12px rgba(236,127,50,0.7)"}}
                             onClick={() => setToast(t("albums.zipStarting"))}
                         >
                             <FaFileArchive aria-hidden/>
                             {t("albums.downloadAll")}
                         </a>
+                        <button
+                            type="button"
+                            onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                            aria-pressed={selecting}
+                            className="al-press flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-semibold"
+                            style={{background: C.card, border: `1px solid ${selecting ? C.primary : C.border}`}}
+                        >
+                            <FaRegCheckCircle aria-hidden/>
+                            {selecting ? t("albums.cancel") : t("albums.select")}
+                        </button>
                         <button
                             type="button"
                             onClick={shareAlbum}
@@ -253,7 +321,16 @@ export default function AlbumPage() {
                         {t("albums.empty")}
                     </p>
                 ) : (
-                    <JustifiedGrid photos={photos} base={base} title={album.title} onOpen={setOpen}/>
+                    <MosaicGrid
+                        photos={photos}
+                        complete={!hasMore}
+                        base={base}
+                        title={album.title}
+                        selecting={selecting}
+                        selected={selected}
+                        onOpen={setOpen}
+                        onToggle={toggle}
+                    />
                 )}
 
                 <div ref={sentinel} aria-hidden className="h-px"/>
@@ -289,7 +366,17 @@ export default function AlbumPage() {
                 />
             )}
 
-            <AppBanner hidden={open !== null}/>
+            <SelectionBar
+                visible={selecting && open === null}
+                count={selected.size}
+                allSelected={allSelected}
+                saving={saving}
+                onCancel={stopSelecting}
+                onSelectAll={selectAll}
+                onDownload={downloadSelected}
+            />
+
+            <AppBanner hidden={open !== null || selecting}/>
 
             {toast && (
                 <div role="status" className="al-toast fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-medium shadow-lg"
@@ -299,24 +386,30 @@ export default function AlbumPage() {
             )}
 
             <style>{`
-                .al-grid { --row-h: 132px; }
-                @media (min-width: 640px) { .al-grid { --row-h: 200px; } }
-                @media (min-width: 1280px) { .al-grid { --row-h: 250px; } }
                 @keyframes al-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
                 .al-reveal { animation: al-reveal .55s cubic-bezier(.2,.8,.2,1) both; }
                 @keyframes al-fade { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes al-up { from { transform: translateY(110%); } to { transform: none; } }
                 @keyframes al-toast { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+                @keyframes al-pulse { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
                 .al-toast { animation: al-toast .25s ease-out both; }
                 .al-press { transition: transform .15s ease, filter .15s ease; }
                 .al-press:active { transform: scale(.97); }
                 .al-press:hover { filter: brightness(1.08); }
-                .al-tile img { transition: opacity .5s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
-                .al-tile:hover img.loaded { transform: scale(1.035); }
-                .al-tile:focus-visible { outline: 2px solid ${C.primary}; outline-offset: 2px; }
+                .al-tile .al-img { transition: opacity .5s ease, transform .25s cubic-bezier(.2,.8,.2,1), border-radius .25s ease; }
+                .al-tile .al-check { opacity: 0; transition: opacity .15s ease, transform .15s ease; }
+                .al-tile.selecting .al-check, .al-tile.selected .al-check { opacity: 1; }
+                @media (hover: hover) {
+                    .al-tile:hover .al-check { opacity: 1; }
+                    .al-tile:not(.selecting):hover .al-img.loaded { transform: scale(1.03); }
+                    .al-tile:hover .al-shade { opacity: 1; }
+                }
+                .al-tile.selected .al-img { transform: scale(.88); border-radius: 10px; }
+                .al-tile:focus-within { outline: 2px solid ${C.primary}; outline-offset: 1px; }
+                .al-skeleton { animation: al-pulse 1.4s ease-in-out infinite; }
                 @media (prefers-reduced-motion: reduce) {
-                    .al-reveal, .al-toast { animation: none; }
-                    .al-tile img, .al-slide { transition: none !important; }
+                    .al-reveal, .al-toast, .al-skeleton { animation: none; }
+                    .al-tile .al-img, .al-slide, .al-bar { transition: none !important; }
                 }
             `}</style>
         </div>
@@ -324,37 +417,350 @@ export default function AlbumPage() {
 }
 
 /**
- * Rows of equal height filled edge to edge, each photo keeping its proportions. Pure CSS: every tile grows in
- * proportion to its width/height ratio, so the layout is right from the server's first paint, with no shift.
+ * Saves the selected originals the way the device expects: one photo as a file, a few photos on a phone through
+ * the share sheet (which offers "Save N images" to the photo library), anything else as one zip built by the server.
  */
-function JustifiedGrid({photos, base, title, onOpen}: {
+async function saveSelection(base: string, slug: string, ids: string[]): Promise<"file" | "shared" | "zip" | "cancelled"> {
+    if (ids.length === 1) {
+        await savePhoto(photoUrl(base, ids[0], "original", true), `${slug}.jpg`);
+        return "file";
+    }
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (coarse && ids.length <= SHARE_SHEET_MAX && "canShare" in navigator) {
+        try {
+            const files: File[] = [];
+            for (const [i, id] of ids.entries()) {
+                const blob = await (await fetch(photoUrl(base, id, "original"))).blob();
+                files.push(new File([blob], `${slug}-${i + 1}.jpg`, {type: blob.type || "image/jpeg"}));
+            }
+            if (navigator.canShare({files})) {
+                await navigator.share({files});
+                return "shared";
+            }
+        } catch (e) {
+            if ((e as DOMException)?.name === "AbortError") return "cancelled";
+        }
+    }
+    // A plain form post: the browser saves the archive the response carries and stays on the page.
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = `${base}/download`;
+    form.style.display = "none";
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "ids";
+    input.value = ids.join(",");
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+    return "zip";
+}
+
+/** Above this many photos, a phone gets a zip rather than a share sheet holding every original in memory. */
+const SHARE_SHEET_MAX = 12;
+
+/**
+ * The album's title and photo count, pinned at the top once the page title has scrolled away. On a phone it steps
+ * aside while the visitor scrolls down through the photos and comes back as soon as they scroll up a little.
+ */
+function StickyBar({titleRef, title, count, selecting, onSelect, downloadHref, onDownloadAll}: {
+    titleRef: React.RefObject<HTMLHeadingElement | null>;
+    title: string;
+    count: string;
+    selecting: boolean;
+    onSelect: () => void;
+    downloadHref: string;
+    onDownloadAll: () => void;
+}) {
+    const {t} = useTranslation();
+    const [pastTitle, setPastTitle] = useState(false);
+    const [scrollingUp, setScrollingUp] = useState(true);
+    const [wide, setWide] = useState(false);
+
+    useEffect(() => {
+        const mq = window.matchMedia("(min-width: 768px)");
+        const update = () => setWide(mq.matches);
+        update();
+        mq.addEventListener("change", update);
+        return () => mq.removeEventListener("change", update);
+    }, []);
+
+    // Direction of the scroll, with a small dead zone so a finger resting on the screen does not flicker the bar.
+    // Setting the same state again is free: React skips the render.
+    useEffect(() => {
+        let last = window.scrollY;
+        const onScroll = () => {
+            const y = window.scrollY;
+            const el = titleRef.current;
+            setPastTitle(!!el && y > el.offsetTop + el.offsetHeight);
+            if (y < last - 6) setScrollingUp(true);
+            else if (y > last + 10) setScrollingUp(false);
+            else return;
+            last = y;
+        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, {passive: true});
+        return () => window.removeEventListener("scroll", onScroll);
+    }, [titleRef]);
+
+    const visible = pastTitle && (wide || scrollingUp || selecting);
+
+    return (
+        <div
+            className="al-bar fixed inset-x-0 top-0 z-30"
+            aria-hidden={!visible}
+            style={{
+                transform: visible ? "none" : "translateY(-110%)",
+                transition: "transform .3s cubic-bezier(.2,.8,.2,1)",
+                background: "rgba(7,4,2,0.82)",
+                borderBottom: `1px solid ${C.border}`,
+                backdropFilter: "blur(14px) saturate(140%)",
+                WebkitBackdropFilter: "blur(14px) saturate(140%)",
+                paddingTop: "env(safe-area-inset-top)",
+            }}
+        >
+            <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-3 px-3 sm:px-6">
+                <img src="/logo.png" alt="" className="h-7 w-7 shrink-0 rounded-lg"/>
+                <div className="min-w-0 flex-1 leading-tight">
+                    <p className="truncate text-sm font-semibold sm:text-base">{title}</p>
+                    <p className="truncate text-xs" style={{color: C.muted}}>{count}</p>
+                </div>
+                <button
+                    type="button"
+                    tabIndex={visible ? 0 : -1}
+                    onClick={onSelect}
+                    aria-pressed={selecting}
+                    className="al-press flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-medium"
+                    style={{background: selecting ? "rgba(236,127,50,0.16)" : "transparent", color: selecting ? C.primary : C.text}}
+                >
+                    <FaRegCheckCircle aria-hidden/>
+                    <span className="hidden sm:inline">{selecting ? t("albums.cancel") : t("albums.select")}</span>
+                </button>
+                <a
+                    href={downloadHref}
+                    download
+                    tabIndex={visible ? 0 : -1}
+                    onClick={onDownloadAll}
+                    aria-label={t("albums.downloadAll")}
+                    className="al-press flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-white"
+                    style={{background: C.primary}}
+                >
+                    <FaFileArchive aria-hidden/>
+                    <span className="hidden sm:inline">{t("albums.downloadAll")}</span>
+                </a>
+            </div>
+        </div>
+    );
+}
+
+/** Actions on the selected photos, at the bottom like the app's selection bar. */
+function SelectionBar({visible, count, allSelected, saving, onCancel, onSelectAll, onDownload}: {
+    visible: boolean;
+    count: number;
+    allSelected: boolean;
+    saving: boolean;
+    onCancel: () => void;
+    onSelectAll: () => void;
+    onDownload: () => void;
+}) {
+    const {t} = useTranslation();
+    return (
+        <div
+            className="al-bar fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 sm:bottom-5"
+            aria-hidden={!visible}
+            style={{
+                paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                transform: visible ? "none" : "translateY(140%)",
+                transition: "transform .35s cubic-bezier(.2,.8,.2,1)",
+                pointerEvents: visible ? "auto" : "none",
+            }}
+        >
+            <div className="flex w-full max-w-xl items-center gap-2 rounded-2xl p-2 pl-2 shadow-2xl"
+                 style={{background: "rgba(30,21,21,0.94)", border: `1px solid ${C.border}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)"}}>
+                <button type="button" onClick={onCancel} aria-label={t("albums.cancel")} tabIndex={visible ? 0 : -1}
+                        className="shrink-0 rounded-full p-2.5 transition-colors hover:bg-white/10">
+                    <FaTimes/>
+                </button>
+                <p className="min-w-0 flex-1 truncate text-sm font-semibold" aria-live="polite">
+                    {count > 0 ? t("albums.selectedCount", {count}) : t("albums.selectHint")}
+                </p>
+                <button type="button" onClick={onSelectAll} tabIndex={visible ? 0 : -1}
+                        className="shrink-0 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-white/10" style={{color: C.muted}}>
+                    {allSelected ? t("albums.deselectAll") : t("albums.selectAll")}
+                </button>
+                <button type="button" onClick={onDownload} disabled={count === 0 || saving} tabIndex={visible ? 0 : -1}
+                        className="al-press flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                        style={{background: C.primary}}>
+                    {saving ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"/> : <FaDownload aria-hidden/>}
+                    <span className="hidden sm:inline">{t("albums.download")}</span>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+/**
+ * The app's mosaic: justified rows with, now and then, a large photo beside two small ones or a wide photo across
+ * the page. Its geometry depends on the width, so it is laid out once the container is measured; the server sends
+ * placeholders of the same rhythm.
+ */
+function MosaicGrid({photos, complete, base, title, selecting, selected, onOpen, onToggle}: {
     photos: PublicPhoto[];
+    complete: boolean;
     base: string;
     title: string;
+    selecting: boolean;
+    selected: Set<string>;
     onOpen: (i: number) => void;
+    onToggle: (id: string) => void;
 }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const [width, setWidth] = useState(0);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const measure = () => setWidth(Math.floor(el.getBoundingClientRect().width));
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    const gap = width >= 640 ? 4 : 2;
+    const blocks = useMemo(() => (width > 0 ? mosaicBlocks(photos, width, gap, complete) : []), [photos, width, gap, complete]);
+
     return (
-        <ul className="al-grid flex flex-wrap gap-1 sm:gap-1.5">
-            {photos.map((p, i) => {
-                const r = ratioOf(p);
-                return (
-                    <li key={p.id} style={{flexGrow: r * 100, flexBasis: `calc(var(--row-h) * ${r})`}} className="relative">
-                        <button
-                            type="button"
-                            onClick={() => onOpen(i)}
-                            className="al-tile relative block w-full overflow-hidden rounded-md sm:rounded-lg"
-                            style={{background: C.card}}
-                            aria-label={`${title} · ${i + 1}`}
-                        >
-                            <i aria-hidden className="block" style={{paddingBottom: `${100 / r}%`}}/>
-                            {p.has_thumbnail && <Thumb src={photoUrl(base, p.id, "grid")} eager={i < 8}/>}
-                        </button>
-                    </li>
-                );
-            })}
-            {/* Keeps the last row at its natural height instead of stretching it across the page. */}
-            <li aria-hidden style={{flexGrow: 1e6, flexBasis: 0, height: 0}}/>
-        </ul>
+        <div ref={ref} className="flex flex-col" style={{gap}}>
+            {width === 0 && <MosaicSkeleton/>}
+            {blocks.map((b) => (
+                <div
+                    key={b.key}
+                    className="relative"
+                    // Blocks far from the screen skip rendering; their height is known, so the page never jumps.
+                    style={{height: b.height, contentVisibility: "auto", containIntrinsicSize: `auto ${b.height}px`}}
+                >
+                    {b.tiles.map((tile) => (
+                        <Tile
+                            key={tile.photo.id}
+                            tile={tile}
+                            base={base}
+                            label={`${title} · ${tile.index + 1}`}
+                            selecting={selecting}
+                            isSelected={selected.has(tile.photo.id)}
+                            onOpen={onOpen}
+                            onToggle={onToggle}
+                        />
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function MosaicSkeleton() {
+    const rows = [[1.5, 1, 0.7], [2], [1.3, 1.3], [0.8, 1.5, 1]];
+    return (
+        <>
+            {rows.map((row, r) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
+                <div key={r} className="flex gap-0.5 sm:gap-1" style={{height: row.length === 1 ? "38vw" : "min(26vw, 280px)"}}>
+                    {row.map((grow, i) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: static placeholders
+                        <div key={i} className="al-skeleton h-full rounded-[3px]" style={{flexGrow: grow, flexBasis: 0, background: C.card}}/>
+                    ))}
+                </div>
+            ))}
+        </>
+    );
+}
+
+const LONG_PRESS_MS = 450;
+
+function Tile({tile, base, label, selecting, isSelected, onOpen, onToggle}: {
+    tile: MosaicTile<PublicPhoto>;
+    base: string;
+    label: string;
+    selecting: boolean;
+    isSelected: boolean;
+    onOpen: (i: number) => void;
+    onToggle: (id: string) => void;
+}) {
+    const {t} = useTranslation();
+    const {photo, index} = tile;
+    const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
+
+    const cancelPress = () => {
+        if (press.current) window.clearTimeout(press.current.timer);
+    };
+
+    // A long press on a phone starts the selection with this photo, as in the app.
+    const onPointerDown = (e: React.PointerEvent) => {
+        if (e.pointerType !== "touch") return;
+        cancelPress();
+        const state = {x: e.clientX, y: e.clientY, fired: false, timer: 0};
+        state.timer = window.setTimeout(() => {
+            state.fired = true;
+            navigator.vibrate?.(12);
+            onToggle(photo.id);
+        }, LONG_PRESS_MS);
+        press.current = state;
+    };
+    const onPointerMove = (e: React.PointerEvent) => {
+        const p = press.current;
+        if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10) cancelPress();
+    };
+
+    const onClick = () => {
+        if (press.current?.fired) {
+            press.current = null;
+            return;
+        }
+        if (selecting) onToggle(photo.id);
+        else onOpen(index);
+    };
+
+    return (
+        <div
+            className={`al-tile absolute overflow-hidden ${selecting ? "selecting" : ""} ${isSelected ? "selected" : ""}`}
+            style={{left: tile.x, top: tile.y, width: tile.width, height: tile.height, background: isSelected ? "rgba(236,127,50,0.14)" : undefined}}
+        >
+            <button
+                type="button"
+                onClick={onClick}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={cancelPress}
+                onPointerCancel={cancelPress}
+                onContextMenu={(e) => {
+                    if (e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === "touch") e.preventDefault();
+                }}
+                aria-label={label}
+                aria-pressed={selecting ? isSelected : undefined}
+                className="absolute inset-0 block h-full w-full select-none outline-none"
+                style={{WebkitTouchCallout: "none", background: isSelected ? "transparent" : C.card}}
+            >
+                {photo.has_thumbnail && <Thumb src={photoUrl(base, photo.id, "grid")} eager={index < 10}/>}
+                <span aria-hidden className="al-shade pointer-events-none absolute inset-x-0 top-0 h-14 opacity-0 transition-opacity"
+                      style={{background: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)", opacity: selecting ? 1 : undefined}}/>
+            </button>
+            <button
+                type="button"
+                onClick={() => onToggle(photo.id)}
+                aria-label={t("albums.selectPhoto")}
+                aria-pressed={isSelected}
+                className="al-check absolute left-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full sm:left-2 sm:top-2"
+                style={{
+                    background: isSelected ? C.primary : "rgba(7,4,2,0.25)",
+                    border: isSelected ? `2px solid ${C.primary}` : "2px solid rgba(255,255,255,0.9)",
+                    color: "white",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                }}
+            >
+                {isSelected && <FaCheck size={12} aria-hidden/>}
+            </button>
+        </div>
     );
 }
 
@@ -374,7 +780,7 @@ function Thumb({src, eager}: { src: string; eager?: boolean }) {
             decoding="async"
             draggable={false}
             onLoad={() => setLoaded(true)}
-            className={`absolute inset-0 h-full w-full object-cover ${loaded ? "loaded opacity-100" : "opacity-0"}`}
+            className={`al-img absolute inset-0 h-full w-full object-cover ${loaded ? "loaded opacity-100" : "opacity-0"}`}
         />
     );
 }

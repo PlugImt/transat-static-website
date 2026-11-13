@@ -19,8 +19,30 @@ function uniqueName(name: string, used: Set<string>): string {
     return candidate;
 }
 
+const MAX_SELECTED = 2000;
+const PHOTO_ID_RE = /^[A-Za-z0-9_-]{10,100}$/;
+
+// GET: the whole album.
 export async function loader({params, request}: { params: { album?: string }; request: Request }) {
-    const id = albumIdOf(params.album);
+    return zip(params.album, request, null);
+}
+
+// POST with "ids" (comma-separated photo ids): only the photos the visitor selected. A form post, so the browser
+// saves the archive and stays on the page.
+export async function action({params, request}: { params: { album?: string }; request: Request }) {
+    let raw = "";
+    try {
+        raw = String((await request.formData()).get("ids") ?? "");
+    } catch {
+        return new Response("Bad request", {status: 400});
+    }
+    const ids = new Set(raw.split(",").map((s) => s.trim()).filter((s) => PHOTO_ID_RE.test(s)));
+    if (ids.size === 0 || ids.size > MAX_SELECTED) return new Response("Bad request", {status: 400});
+    return zip(params.album, request, ids);
+}
+
+async function zip(segment: string | undefined, request: Request, only: Set<string> | null) {
+    const id = albumIdOf(segment);
     if (!id) return new Response("Not found", {status: 404});
     if (running >= MAX_CONCURRENT) {
         return new Response("Trop de téléchargements en cours, réessayez dans quelques minutes.", {
@@ -36,6 +58,8 @@ export async function loader({params, request}: { params: { album?: string }; re
         const notFound = e instanceof ApiStatusError && e.status === 404;
         return new Response(notFound ? "Not found" : "Unavailable", {status: notFound ? 404 : 502});
     }
+    // Only photos of this album, whatever ids were posted.
+    if (only) album.files = album.files.filter((f) => only.has(f.id));
     if (album.files.length === 0) return new Response("Not found", {status: 404});
 
     const folder = album.slug || `album-${id}`;
@@ -68,7 +92,7 @@ export async function loader({params, request}: { params: { album?: string }; re
     }
 
     const zip = downloadZip(files());
-    const name = `${folder}.zip`;
+    const name = only ? `${folder}-${album.files.length}-photos.zip` : `${folder}.zip`;
     return new Response(zip.body, {
         headers: {
             "Content-Type": "application/zip",
