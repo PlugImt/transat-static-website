@@ -48,8 +48,8 @@ export default function App() {
     }, []);
 
     return (
-        // The photobooth share pages are standalone, like a screen of the app: no site header or footer.
-        location.pathname.startsWith("/photobooth/") ? <Outlet/> : (
+        // The photobooth and album share pages are standalone, like a screen of the app: no site header or footer.
+        location.pathname.startsWith("/photobooth/") || location.pathname.startsWith("/albums/") ? <Outlet/> : (
             <PageLayout>
                 <Outlet/>
             </PageLayout>

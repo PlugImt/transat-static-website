@@ -185,5 +185,29 @@
     "shareLink": "Share the link",
     "getApp": "All your party photos are in the Transat app",
     "download": "Save"
+  },
+  "albums": {
+    "badge": "Photo album",
+    "photoCount_one": "{{count}} photo",
+    "photoCount_other": "{{count}} photos",
+    "downloadAll": "Download album",
+    "zipStarting": "Your album download is starting…",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "empty": "This album has no photos yet.",
+    "retry": "Try again",
+    "fullQuality": "Every download is the original file, in full quality.",
+    "download": "Download",
+    "close": "Close",
+    "previous": "Previous photo",
+    "next": "Next photo",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "gestures": "Swipe to change photo · double-tap to zoom",
+    "app": {
+      "title": "The Transat app",
+      "body": "Every album of the school, in one place.",
+      "cta": "Get the app"
+    }
   }
 }

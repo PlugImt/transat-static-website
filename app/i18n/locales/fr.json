@@ -181,5 +181,29 @@
     "shareLink": "Partager le lien",
     "getApp": "Toutes les photos de vos soirées sont dans l'application Transat",
     "download": "Enregistrer"
+  },
+  "albums": {
+    "badge": "Album photo",
+    "photoCount_one": "{{count}} photo",
+    "photoCount_other": "{{count}} photos",
+    "downloadAll": "Télécharger l'album",
+    "zipStarting": "Le téléchargement de l'album commence…",
+    "share": "Partager",
+    "linkCopied": "Lien copié",
+    "empty": "Cet album ne contient pas encore de photos.",
+    "retry": "Réessayer",
+    "fullQuality": "Chaque téléchargement est le fichier original, en pleine qualité.",
+    "download": "Télécharger",
+    "close": "Fermer",
+    "previous": "Photo précédente",
+    "next": "Photo suivante",
+    "zoomIn": "Zoomer",
+    "zoomOut": "Dézoomer",
+    "gestures": "Glissez pour changer de photo · touchez deux fois pour zoomer",
+    "app": {
+      "title": "L'app Transat",
+      "body": "Tous les albums de l'école, au même endroit.",
+      "cta": "Télécharger"
+    }
   }
 }
