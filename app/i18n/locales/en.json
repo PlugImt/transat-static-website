@@ -203,11 +203,6 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "gestures": "Swipe to change photo · double-tap to zoom",
-    "app": {
-      "title": "The Transat app",
-      "body": "Every album of the school, in one place.",
-      "cta": "Get the app"
-    },
     "select": "Select",
     "cancel": "Cancel",
     "deselectAll": "Deselect all",
@@ -223,6 +218,16 @@
     "view": "View larger",
     "photoActions": "Photo actions",
     "selectionLimit": "Up to {{count}} photos per download",
-    "selectionMax": "Up to {{count}} photos per download"
+    "selectionMax": "Up to {{count}} photos per download",
+    "invite": {
+      "title": "Student at IMT Atlantique Nantes?",
+      "body": "Get the Transat app: it does more than this page, with plenty of extra features.",
+      "feature1": "Every photo album of the school, in one place",
+      "feature2": "A notification for every new album",
+      "feature3": "The canteen menu, washing machines, events and clubs",
+      "cta": "Download the app",
+      "open": "I already have the app: open the album",
+      "later": "Later"
+    }
   }
 }

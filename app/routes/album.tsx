@@ -62,6 +62,8 @@ export function meta({data: d}: { data?: { album: PublicAlbum } }) {
         // Photos of students: shareable by link, never listed by search engines.
         {name: "robots", content: "noindex, nofollow"},
         {name: "theme-color", content: "#070402"},
+        // Safari's banner: "Ouvrir" opens the album in the app when it is installed, "Afficher" leads to the store.
+        {name: "apple-itunes-app", content: `app-id=${IOS_APP_STORE_ID}, app-argument=${album.share_url}`},
         {property: "og:type", content: "website"},
         {property: "og:site_name", content: "Transat"},
         {property: "og:title", content: album.title},
@@ -404,7 +406,7 @@ export default function AlbumPage() {
                 }}
             />
 
-            <AppBanner hidden={open !== null || selecting || menu !== null}/>
+            <AppInvite albumId={album.id} hidden={open !== null || selecting || menu !== null}/>
 
             {toast && (
                 <div role="status" className="al-toast fixed left-1/2 top-4 z-[70] -translate-x-1/2 rounded-full px-4 py-2 text-sm font-medium shadow-lg"
@@ -1249,67 +1251,101 @@ function Slide({base, photo, view, zooming, alt}: {
 
 // ---- app suggestion ----------------------------------------------------------------------------------------
 
-const BANNER_KEY = "transat.albums.appBanner";
-const BANNER_SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+const INVITE_KEY = "transat.albums.appInvite";
+const INVITE_SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+/** Time spent on the page before the invitation shows: long enough to have looked at the photos. */
+const INVITE_DELAY_MS = 20_000;
+const IOS_APP_STORE_ID = "6602883801";
+const ANDROID_PACKAGE = "com.yohann69.transat2_0";
+const DOWNLOAD_URL = "/download?source=qrcode";
 
 /**
- * Suggests the app to visitors who reached the web page. On a phone that has it, the link opens the app instead
- * of this page (Universal Links / App Links), so whoever sees this either has no app or chose the browser.
+ * The album in the app: an Android intent (falls back to the download page when the app is missing) or the
+ * app's scheme on iOS. Only used from a tap: browsers refuse to leave for an app on their own.
  */
-function AppBanner({hidden}: { hidden: boolean }) {
+function openInAppUrl(albumId: number): string {
+    if (typeof navigator !== "undefined" && /android/i.test(navigator.userAgent)) {
+        const fallback = encodeURIComponent(`${window.location.origin}${DOWNLOAD_URL}`);
+        return `intent://albums/${albumId}#Intent;scheme=transat;package=${ANDROID_PACKAGE};S.browser_fallback_url=${fallback};end`;
+    }
+    return `transat://albums/${albumId}`;
+}
+
+/**
+ * Invites the visitors still on the web page after a while to install the app. On a phone that has it, the link
+ * opens the app instead of this page (Universal Links / App Links); when it did not (link typed, in-app browser),
+ * "J'ai déjà l'app" opens the album there.
+ */
+function AppInvite({albumId, hidden}: { albumId: number; hidden: boolean }) {
     const {t} = useTranslation();
-    const [show, setShow] = useState(false);
+    const [due, setDue] = useState(false);
+    const [closed, setClosed] = useState(false);
 
     useEffect(() => {
-        let dismissed = 0;
+        let snoozed = 0;
         try {
-            dismissed = Number(localStorage.getItem(BANNER_KEY) ?? 0);
+            snoozed = Number(localStorage.getItem(INVITE_KEY) ?? 0);
         } catch {
             // storage blocked: show it, it can still be closed for this visit
         }
-        if (Date.now() - dismissed < BANNER_SNOOZE_MS) return;
-        const id = setTimeout(() => setShow(true), 1500);
+        if (Date.now() - snoozed < INVITE_SNOOZE_MS) return;
+        const id = setTimeout(() => setDue(true), INVITE_DELAY_MS);
         return () => clearTimeout(id);
     }, []);
 
-    const dismiss = () => {
-        setShow(false);
+    const close = useCallback(() => {
+        setClosed(true);
         try {
-            localStorage.setItem(BANNER_KEY, String(Date.now()));
+            localStorage.setItem(INVITE_KEY, String(Date.now()));
         } catch {
             // nothing to remember it with
         }
-    };
+    }, []);
 
-    const visible = show && !hidden;
-    if (!show) return null;
+    const visible = due && !closed && !hidden;
+    useEffect(() => {
+        if (!visible) return;
+        const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [visible, close]);
+    if (!visible) return null;
 
+    const features = [t("albums.invite.feature1"), t("albums.invite.feature2"), t("albums.invite.feature3")];
     return (
-        <aside
-            aria-label={t("albums.app.title")}
-            className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 sm:bottom-5"
-            style={{
-                paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-                transform: visible ? "none" : "translateY(130%)",
-                transition: "transform .45s cubic-bezier(.2,.8,.2,1)",
-                animation: "al-up .5s cubic-bezier(.2,.8,.2,1) both",
-            }}
-        >
-            <div className="flex w-full max-w-xl items-center gap-3 rounded-2xl p-3 pr-2 shadow-2xl sm:p-4"
-                 style={{background: "rgba(30,21,21,0.92)", border: `1px solid ${C.border}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)"}}>
-                <img src="/logo.png" alt="" className="h-11 w-11 shrink-0 rounded-xl"/>
-                <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold leading-tight">{t("albums.app.title")}</p>
-                    <p className="mt-0.5 text-xs leading-snug" style={{color: C.muted}}>{t("albums.app.body")}</p>
-                </div>
-                <a href="/download" className="al-press shrink-0 rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{background: C.blue}}>
-                    {t("albums.app.cta")}
-                </a>
-                <button type="button" onClick={dismiss} aria-label={t("albums.close")} className="shrink-0 rounded-full p-2 transition-colors hover:bg-white/10"
+        <div className="fixed inset-0 z-[65] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true"
+             aria-labelledby="al-invite-title">
+            <button type="button" aria-label={t("albums.close")} onClick={close} className="absolute inset-0 cursor-default"
+                    style={{background: "rgba(7,4,2,0.6)", animation: "al-fade .2s ease-out", backdropFilter: "blur(2px)"}}/>
+            <div className="relative w-full max-w-md rounded-t-3xl p-6 sm:rounded-3xl"
+                 style={{background: C.card, border: `1px solid ${C.border}`, animation: "al-sheet .3s cubic-bezier(.2,.8,.2,1) both", paddingBottom: "max(20px, env(safe-area-inset-bottom))"}}>
+                <button type="button" onClick={close} aria-label={t("albums.close")} className="absolute right-3 top-3 rounded-full p-2 transition-colors hover:bg-white/10"
                         style={{color: C.muted}}>
                     <FaTimes/>
                 </button>
+                <img src="/logo.png" alt="" className="h-14 w-14 rounded-2xl"/>
+                <h2 id="al-invite-title" className="mt-4 text-xl font-bold leading-tight">{t("albums.invite.title")}</h2>
+                <p className="mt-2 text-sm leading-relaxed" style={{color: C.muted}}>{t("albums.invite.body")}</p>
+                <ul className="mt-4 space-y-2 text-sm">
+                    {features.map((f) => (
+                        <li key={f} className="flex items-start gap-2.5">
+                            <FaCheck aria-hidden className="mt-1 shrink-0 text-xs" style={{color: C.primary}}/>
+                            {f}
+                        </li>
+                    ))}
+                </ul>
+                <a href={DOWNLOAD_URL} onClick={close} className="al-press mt-6 block w-full rounded-xl py-3.5 text-center text-[15px] font-semibold text-white"
+                   style={{background: C.primary}}>
+                    {t("albums.invite.cta")}
+                </a>
+                <a href={openInAppUrl(albumId)} onClick={close} className="al-press mt-2 block w-full rounded-xl py-3 text-center text-sm font-semibold"
+                   style={{background: "rgba(255,230,204,0.06)"}}>
+                    {t("albums.invite.open")}
+                </a>
+                <button type="button" onClick={close} className="mt-1 w-full rounded-xl py-3 text-sm font-medium" style={{color: C.muted}}>
+                    {t("albums.invite.later")}
+                </button>
             </div>
-        </aside>
+        </div>
     );
 }

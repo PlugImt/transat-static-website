@@ -199,11 +199,6 @@
     "zoomIn": "Zoomer",
     "zoomOut": "Dézoomer",
     "gestures": "Glissez pour changer de photo · touchez deux fois pour zoomer",
-    "app": {
-      "title": "L'app Transat",
-      "body": "Tous les albums de l'école, au même endroit.",
-      "cta": "Télécharger"
-    },
     "select": "Sélectionner",
     "cancel": "Annuler",
     "deselectAll": "Tout désélectionner",
@@ -219,6 +214,16 @@
     "view": "Voir en grand",
     "photoActions": "Actions sur la photo",
     "selectionLimit": "{{count}} photos maximum par téléchargement",
-    "selectionMax": "{{count}} photos max. par téléchargement"
+    "selectionMax": "{{count}} photos max. par téléchargement",
+    "invite": {
+      "title": "Étudiant·e à l'IMT Atlantique Nantes ?",
+      "body": "Installe l'application Transat : c'est mieux qu'ici, avec plein de fonctionnalités en plus.",
+      "feature1": "Tous les albums photo de l'école, au même endroit",
+      "feature2": "Une notification à chaque nouvel album",
+      "feature3": "Le menu du RU, les machines à laver, les événements et les clubs",
+      "cta": "Télécharger l'application",
+      "open": "J'ai déjà l'app : ouvrir l'album",
+      "later": "Plus tard"
+    }
   }
 }
