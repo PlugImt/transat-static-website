@@ -4,6 +4,7 @@ import {useTranslation} from "react-i18next";
 import {FaArrowLeft, FaArrowRight, FaDownload, FaShareAlt, FaTimes} from "react-icons/fa";
 
 import {photoboothApi, type Share, type ShareFile, validToken} from "../lib/photobooth.server";
+import {useReportVisit} from "../lib/visit";
 
 export async function loader({params}: { params: { token?: string } }) {
     const token = params.token;
@@ -120,6 +121,7 @@ function Img({src, alt, className = "", eager, natural}: {
 export default function PhotoboothShare() {
     const {token, share} = useLoaderData<typeof loader>();
     const {t, i18n} = useTranslation();
+    useReportVisit(`/photobooth/${token}/visit`);
     const collage = share.files.find((f) => f.kind === "collage");
     const photos = share.files.filter((f) => f.kind === "photo");
     const gallery = collage ? [collage, ...photos] : photos;

@@ -6,6 +6,7 @@ import {FaArrowLeft, FaArrowRight, FaCheck, FaDownload, FaExpand, FaHandPointer,
 import {albumPath, type PublicAlbum, type PublicPhoto, type PublicPhotosPage} from "../lib/albums";
 import {albumIdOf, apiJson, ApiStatusError} from "../lib/albums.server";
 import {mosaicBlocks, type MosaicTile} from "../lib/mosaic";
+import {useReportVisit} from "../lib/visit";
 
 export async function loader({params}: { params: { album?: string } }) {
     const id = albumIdOf(params.album);
@@ -165,6 +166,7 @@ export default function AlbumPage() {
     const {album, page} = useLoaderData<typeof loader>();
     const {t, i18n} = useTranslation();
     const base = albumPath(album);
+    useReportVisit(`${base}/visit`);
     const {photos, hasMore, loading, failed, loadMore} = useInfinitePhotos(base, page);
     const [open, setOpen] = useState<number | null>(null);
     const [toast, setToast] = useState<string | null>(null);
